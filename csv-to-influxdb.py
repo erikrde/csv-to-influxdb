@@ -5,8 +5,9 @@ import argparse
 import csv
 import datetime
 from pytz import timezone
-
 from influxdb import InfluxDBClient
+from dateutil import parser as dateutil_parser
+
 
 epoch_naive = datetime.datetime.utcfromtimestamp(0)
 epoch = timezone('UTC').localize(epoch_naive)
@@ -65,10 +66,14 @@ def loadCsv(inputfilename, servername, user, password, dbname, metric,
     count = 0
     with open(inputfilename, 'r') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=delimiter)
+        
         for row in reader:
-            datetime_naive = datetime.datetime.strptime(row[timecolumn],timeformat)
-            datetime_local = timezone(datatimezone).localize(datetime_naive)
-
+            if timeformat == "rfc3339":
+                datetime_local = dateutil_parser.parse(row[timecolumn])
+            else:
+                datetime_naive = datetime.datetime.strptime(row[timecolumn],timeformat)
+                datetime_local = timezone(datatimezone).localize(datetime_naive)
+            
             timestamp = unix_time_millis(datetime_local) * 1000000 # in nanoseconds
 
             tags = {}
@@ -151,7 +156,7 @@ if __name__ == "__main__":
                         help='Timestamp column name. Default: timestamp.')
 
     parser.add_argument('-tf', '--timeformat', nargs='?', default='%Y-%m-%d %H:%M:%S',
-                        help='Timestamp format. Default: \'%%Y-%%m-%%d %%H:%%M:%%S\' e.g.: 1970-01-01 00:00:00')
+                        help='Timestamp format. Default: \'%%Y-%%m-%%d %%H:%%M:%%S\' e.g.: 1970-01-01 00:00:00 | rfc3339')
 
     parser.add_argument('-tz', '--timezone', default='UTC',
                         help='Timezone of supplied data. Default: UTC')
